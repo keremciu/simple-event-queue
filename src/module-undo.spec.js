@@ -35,8 +35,10 @@ describe("EventQueue", () => {
     });
     expect(queue.query()).toEqual(4);
   });
-  it("after dispatching UNDO events, REDO event will reapply an undone event starting with latest", () => {
+  it.only("after dispatching UNDO events, REDO event will reapply an undone event starting with latest", () => {
     const queue = new EventQueue({ initialState: 4 });
+    const prevStates = [4,6.1,11.1]
+    
     queue.dispatch({
       type: "ADD",
       value: 2.1,
