@@ -1,0 +1,47 @@
+{
+  "name": "smartly-io-interview-exercise",
+  "version": "0.0.1",
+  "author": "Smartly.io",
+  "license": "MIT",
+  "scripts": {
+    "clean": "node --experimental-modules .scripts/clean.mjs",
+    "start": "ts-node sandbox",
+    "typescript": "node --experimental-modules .scripts/typescript.mjs",
+    "watch": "nodemon --exec npm run start",
+    "test": "jest --no-cache",
+    "test:watch": "onchange 'src/**/*' -i -- npm run test",
+    "build": "tsc --project tsconfig.json",
+    "pull": "git pull --allow-unrelated-histories -s recursive -X ours --no-edit --no-rebase origin",
+    "merge": "git merge --allow-unrelated-histories -s recursive -X ours --no-edit --no-rebase"
+  },
+  "devDependencies": {
+    "jest": "^29.3.1",
+    "nodemon": "^2.0.6",
+    "onchange": "^7.1.0",
+    "ts-jest": "^29.0.3",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.3"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testRegex": ".*\\.spec.js$",
+    "transform": {
+      "^.+\\.(t|j)sx?$": [
+        "ts-jest",
+        {
+          "diagnostics": false
+        }
+      ]
+    }
+  },
+  "nodemonConfig": {
+    "watch": [
+      "sandbox.(j|t)s",
+      "src/**/*.(j|t)s"
+    ],
+    "ignore": [
+      "src/**/*.spec.js"
+    ],
+    "exec": "npm run start"
+  }
+}
