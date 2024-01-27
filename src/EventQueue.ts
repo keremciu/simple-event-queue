@@ -20,7 +20,7 @@ class EventQueue {
     return this.states[this.position];
   }
 
-  setState(value: State): void {
+  private setState(value: State): void {
     this.states.push(value);
     this.position += 1;
   }
