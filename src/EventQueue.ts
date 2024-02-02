@@ -5,29 +5,80 @@ type Event = {
 
 type State = number;
 
+interface Command {
+  undo(): number;
+  type: string;
+  value?: number | Function;
+  execute(state: State): State;
+}
+
+class GenericCommand implements Command {
+  type: string;
+  value?: number | Function;
+  private capturedState: State | null = null;
+
+  constructor(type: string, value?: number | Function) {
+    this.type = type;
+    this.value = value;
+  }
+
+  execute(state: State): State {
+    this.capturedState = state;
+    if (typeof this.value === 'function') {
+      return (this.value as Function)(state);
+    } else if (typeof this.value === 'number') {
+      switch (this.type) {
+        case 'ADD':
+          return state + this.value;
+        case 'MULTIPLY':
+          return state * this.value;
+        case 'SET':
+          return this.value;
+        default:
+          throw new Error(`Invalid command type: ${this.type}`);
+      }
+    }
+    throw new Error('Invalid command.');
+  }
+
+  undo(): State {
+    if (this.capturedState !== null) {
+      return this.capturedState;
+    }
+    throw new Error('Cannot undo, captured state is null.');
+  }
+}
+
 class EventQueue {
-  private states: State[];
   private position: number;
+  private commandHistory: Command[] = [];
   private handlers: ((state: State) => void)[];
+  value: number;
+  initialState: number;
 
   constructor({ initialState }: { initialState: State }) {
-    this.states = [initialState];
+    this.initialState = initialState;
     this.position = 0;
     this.handlers = [];
+    this.value = initialState;
   }
 
   query(): State {
-    return this.states[this.position];
+    return this.value;
   }
 
   private setState(value: State): void {
-    this.states.push(value);
-    this.position += 1;
+    this.value = value;
   }
 
   assertInvariant(fn: (state: State) => boolean): boolean {
-    for (const state of this.states) {
-      if (!fn(state)) {
+    if (this.commandHistory.length === 0) {
+      return fn(this.initialState);
+    }
+    let currentState = this.initialState;
+    for (const command of this.commandHistory) {
+      currentState = command.execute(currentState);
+      if (!fn(currentState)) {
         return false;
       }
     }
@@ -47,44 +98,28 @@ class EventQueue {
 
   dispatch(event: Event): void {
     const prevStateValue = this.query();
-    switch (event.type) {
-      case 'ADD':
-        if (typeof event.value !== "number") {
-          throw new Error('Please provide a number as event value to dispatch add');
-        }
-        this.setState(this.query() + event.value);
-        break;
-      case 'MULTIPLY':
-        if (typeof event.value !== "number") {
-          throw new Error('Please provide a number as event value to dispatch multiply');
-        }
-        this.setState(this.query() * event.value);
-        break;
-      case 'SET':
-        if (typeof event.value !== "number") {
-          throw new Error('Please provide a number as event value to dispatch set');
-        }
-        this.setState(event.value);
-        break;
-      case 'FUNCTION':
-        if (typeof event.value !== "function") {
-          throw new Error('Please provide a number as event value to dispatch set');
-        }
-        this.setState(event.value(this.query()));
-        break;
-      case 'UNDO':
-        if (this.position > 0) {
-          this.position -= 1;
-        }
-        break;
-      case 'REDO':
-        if (this.position < this.states.length - 1) {
-          this.position += 1;
-        }
-        break;
-      default:
-        break;
+
+    if (event.type === 'UNDO') {
+      if (this.position > 0) {
+        this.position -= 1;
+        this.setState(this.commandHistory[this.position].undo());
+      }
+    } else if (event.type === 'REDO') {
+      if (this.position < this.commandHistory.length) {
+        this.setState(this.commandHistory[this.position].execute(this.value));
+        this.position += 1;
+      }
+    } else {
+      const command = new GenericCommand(event.type, event.value);
+      if (this.position < this.commandHistory.length) {
+        this.position = this.commandHistory.length + 1;
+      } else {
+        this.position += 1;
+      }
+      this.commandHistory.push(command);
+      this.setState(command.execute(this.value));
     }
+
     if (prevStateValue !== this.query()) {
       for (const handler of this.handlers) {
         handler(this.query());
